@@ -28,7 +28,7 @@
   </div>
 
   <script>
-    const GOOGLE_SCRIPT_URL = https://script.google.com/macros/s/AKfycby0mjUHliTuEgI-8IdKXtQbSpiMVjGWTdnI8qF6S8Khz22c2XQuJz1fYs7-adAlXJNFnw/exec;
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby0mjUHliTuEgI-8IdKXtQbSpiMVjGWTdnI8qF6S8Khz22c2XQuJz1fYs7-adAlXJNFnw/exec';
 
     // STEP 1: capture ?ref=MUJE0321
     const params = new URLSearchParams(window.location.search);
@@ -51,8 +51,9 @@
         signup_date: new Date().toISOString()
       };
 
-      await fetch(GOOGLE_SCRIPT_URL, {
+      fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
+        mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
