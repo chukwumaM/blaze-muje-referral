@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blaze Referral Signup</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background: linear-gradient(180deg,#f59e0b,#ea580c,#dc2626); min-height:100vh; display:flex; align-items:center; justify-content:center; }
+    .card { width:min(92%,420px); background:#fff; border-radius:24px; padding:24px; box-shadow:0 20px 40px rgba(0,0,0,.15); }
+    img { width:120px; display:block; margin:0 auto 16px; border-radius:16px; }
+    h1 { text-align:center; margin:0 0 16px; }
+    input, button { width:100%; padding:14px; margin-top:12px; border-radius:12px; border:1px solid #ddd; box-sizing:border-box; }
+    button { background:#ea580c; color:#fff; border:none; font-weight:bold; cursor:pointer; }
+    .note { font-size:14px; color:#666; margin-top:10px; text-align:center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img src="IMG_9945.JPG" alt="Blaze Exchange logo" />
+    <h1>Create Account</h1>
+    <form id="signupForm">
+      <input type="text" id="fullName" placeholder="Full Name" required />
+      <input type="email" id="email" placeholder="Email" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <button type="submit">Sign Up</button>
+    </form>
+    <div class="note">Referral code auto-tracks from Muje's link</div>
+  </div>
+
+  <script>
+    const GOOGLE_SCRIPT_URL = https://script.google.com/macros/s/AKfycby0mjUHliTuEgI-8IdKXtQbSpiMVjGWTdnI8qF6S8Khz22c2XQuJz1fYs7-adAlXJNFnw/exec;
+
+    // STEP 1: capture ?ref=MUJE0321
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      localStorage.setItem('referral_code', ref);
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + 30);
+      document.cookie = `referral_code=${ref}; expires=${expiry.toUTCString()}; path=/`;
+    }
+
+    // STEP 2: signup tracking
+    document.getElementById('signupForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const referralCode = localStorage.getItem('referral_code') || 'DIRECT';
+      const payload = {
+        fullName: document.getElementById('fullName').value,
+        email: document.getElementById('email').value,
+        referral_code: referralCode,
+        signup_date: new Date().toISOString()
+      };
+
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      alert('Signup tracked successfully!');
+      this.reset();
+    });
+  </script>
+</body>
+</html>
