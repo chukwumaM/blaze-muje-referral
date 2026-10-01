@@ -23,43 +23,41 @@ async function sendEmail({ to, subject, html }) {
   const from = process.env.RESEND_FROM || "Blaze Exchange <onboarding@resend.dev>";
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from, to: [to], subject, html }),
   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Resend error: ${response.status} ${text}`);
-  }
+  if (!response.ok) throw new Error(`Resend error: ${response.status} ${await response.text()}`);
   return { ok: true };
 }
 
-async function sendWhatsApp(to, body) {
+async function sendWhatsApp(to, body, variables) {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
   const from = process.env.TWILIO_WHATSAPP_FROM;
-  if (!sid || !token || !from || !to) {
-    return { ok: false, skipped: true, reason: "whatsapp_not_configured" };
+  if (!sid || !token || !from || !to) return { ok: false, skipped: true, reason: "whatsapp_not_configured" };
+
+  const params = new URLSearchParams({ from, to: `whatsapp:+${to}` });
+  const contentSid = process.env.TWILIO_CONTENT_SID;
+
+  if (contentSid) {
+    params.set("ContentSid", contentSid);
+    params.set("ContentVariables", JSON.stringify(variables));
+  } else {
+    // Useful for testing in a WhatsApp sandbox or when the customer is already
+    // inside an allowed WhatsApp conversation window. For new outbound chats,
+    // configure TWILIO_CONTENT_SID with an approved template.
+    params.set("Body", body);
   }
 
-  const params = new URLSearchParams({ from, to: `whatsapp:+${to}`, body });
   const auth = Buffer.from(`${sid}:${token}`).toString("base64");
   const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
     method: "POST",
-    headers: {
-      Authorization: `Basic ${auth}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
+    headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
     body: params,
   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Twilio error: ${response.status} ${text}`);
-  }
+  if (!response.ok) throw new Error(`Twilio error: ${response.status} ${await response.text()}`);
   return { ok: true };
 }
 
@@ -73,11 +71,8 @@ async function saveToGoogleSheet(payload) {
     body: JSON.stringify(payload),
   });
 
-  // Apps Script web apps sometimes return a redirect or a text response. We only
-  // need to know that the request was accepted; do not expose provider details.
   if (!response.ok && response.status !== 302) {
-    const text = await response.text();
-    throw new Error(`Google Apps Script error: ${response.status} ${text}`);
+    throw new Error(`Google Apps Script error: ${response.status} ${await response.text()}`);
   }
   return { ok: true };
 }
@@ -87,8 +82,6 @@ exports.handler = async (event) => {
 
   try {
     const data = JSON.parse(event.body || "{}");
-
-    // Honeypot: silently accept bots without creating a lead.
     if (clean(data["bot-field"], 50)) return json(200, { ok: true });
 
     const lead = {
@@ -108,43 +101,22 @@ exports.handler = async (event) => {
     }
 
     const teamEmail = process.env.BLAZE_TEAM_EMAIL;
-    const leadEmail = lead.email;
     const whatsappText = `Hi ${lead.name}, this is Blaze Exchange. We received your Digital Asset Check for ${lead.asset}. Our team will review the details and get back to you shortly. Please do not send passwords, PINs, seed phrases or private keys.`;
+    const templateVariables = { "1": lead.name, "2": lead.asset };
 
-    const emailHtml = `
-      <h2>New Blaze Digital Asset Check</h2>
-      <p><strong>Name:</strong> ${lead.name}</p>
-      <p><strong>WhatsApp:</strong> ${lead.whatsapp}</p>
-      <p><strong>Email:</strong> ${lead.email || "Not provided"}</p>
-      <p><strong>Asset:</strong> ${lead.asset}</p>
-      <p><strong>Amount:</strong> ${lead.amount}</p>
-      <p><strong>Intent:</strong> ${lead.intent}</p>
-      <p><strong>Source:</strong> ${lead.source}</p>
-      <p><strong>Submitted:</strong> ${lead.submitted_at}</p>
-      <hr>
-      <p>Do not request or store passwords, PINs, wallet seed phrases or private keys.</p>
-    `;
+    const emailHtml = `<h2>New Blaze Digital Asset Check</h2><p><strong>Name:</strong> ${lead.name}</p><p><strong>WhatsApp:</strong> ${lead.whatsapp}</p><p><strong>Email:</strong> ${lead.email || "Not provided"}</p><p><strong>Asset:</strong> ${lead.asset}</p><p><strong>Amount:</strong> ${lead.amount}</p><p><strong>Intent:</strong> ${lead.intent}</p><p><strong>Source:</strong> ${lead.source}</p><p><strong>Submitted:</strong> ${lead.submitted_at}</p><hr><p>Do not request or store passwords, PINs, wallet seed phrases or private keys.</p>`;
 
     const results = await Promise.allSettled([
       saveToGoogleSheet(lead),
       sendEmail({ to: teamEmail, subject: `New Digital Asset Check — ${lead.name}`, html: emailHtml }),
-      leadEmail
-        ? sendEmail({
-            to: leadEmail,
-            subject: "We received your Blaze Digital Asset Check",
-            html: `<p>Hi ${lead.name},</p><p>We received your Digital Asset Check for <strong>${lead.asset}</strong>.</p><p>The Blaze team will review your enquiry and follow up with you.</p><p>Please do not send passwords, PINs, seed phrases or private keys.</p><p>— Blaze Exchange</p>`,
-          })
-        : Promise.resolve({ ok: false, skipped: true, reason: "lead_email_not_provided" }),
-      sendWhatsApp(lead.whatsapp, whatsappText),
+      lead.email ? sendEmail({ to: lead.email, subject: "We received your Blaze Digital Asset Check", html: `<p>Hi ${lead.name},</p><p>We received your Digital Asset Check for <strong>${lead.asset}</strong>.</p><p>The Blaze team will review your enquiry and follow up with you.</p><p>Please do not send passwords, PINs, seed phrases or private keys.</p><p>— Blaze Exchange</p>` }) : Promise.resolve({ ok: false, skipped: true }),
+      sendWhatsApp(lead.whatsapp, whatsappText, templateVariables),
     ]);
 
     const failed = results.filter((r) => r.status === "rejected");
-    if (failed.length === results.length) {
-      console.error("All lead integrations failed", failed);
-      return json(502, { ok: false, message: "We could not submit your check right now. Please try again in a moment." });
-    }
-
+    if (failed.length === results.length) return json(502, { ok: false, message: "We could not submit your check right now. Please try again in a moment." });
     failed.forEach((r) => console.error("Lead integration failed", r.reason));
+
     return json(200, { ok: true, message: "Your Digital Asset Check was submitted successfully." });
   } catch (error) {
     console.error(error);
