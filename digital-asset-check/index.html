@@ -15,17 +15,17 @@
     .secure{font-size:12px;color:#555;font-weight:700}
     .wrap{max-width:1180px;margin:0 auto;padding:50px 6vw 70px;display:grid;grid-template-columns:1fr 1fr;gap:52px;align-items:center}
     .eyebrow{display:inline-flex;padding:8px 12px;border-radius:999px;background:#111;color:#fff;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
-    h1{font-size:clamp(42px,6vw,72px);line-height:.96;letter-spacing:-.055em;margin:18px 0 20px;max-width:650px}
-    h1 span{color:var(--orange)}
+    h1{font-size:clamp(42px,6vw,72px);line-height:.96;letter-spacing:-.055em;margin:18px 0 20px;max-width:650px}h1 span{color:var(--orange)}
     .lead{font-size:18px;line-height:1.6;color:#4b4b4b;max-width:610px;margin:0 0 24px}
     .points{display:grid;gap:10px;margin:0;padding:0;list-style:none}.points li{font-weight:700}.points li:before{content:"✓";display:inline-grid;place-items:center;width:24px;height:24px;margin-right:9px;border-radius:50%;background:#111;color:#fff;font-size:13px}
     .card{background:#fff;border:1px solid #e4e4e4;border-radius:28px;padding:30px;box-shadow:0 24px 70px rgba(0,0,0,.09)}
     .card h2{font-size:25px;margin:0 0 6px;letter-spacing:-.03em}.card .sub{margin:0 0 24px;color:var(--muted);line-height:1.5;font-size:14px}
     label{display:block;font-weight:800;font-size:13px;margin:18px 0 8px}.required{color:var(--orange)}
     .options{display:grid;gap:9px}.option{position:relative}.option input{position:absolute;opacity:0;pointer-events:none}.option label{margin:0;display:block;padding:13px 14px;border:1px solid var(--line);border-radius:13px;font-weight:650;cursor:pointer;transition:.15s;background:#fff}.option input:checked+label{border-color:var(--orange);background:var(--soft);box-shadow:0 0 0 2px rgba(255,106,0,.12)}
-    input[type=text],input[type=tel],select{width:100%;padding:14px 15px;border:1px solid var(--line);border-radius:13px;font:inherit;background:#fff;outline:none}input:focus,select:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,106,0,.1)}
+    input[type=text],input[type=tel]{width:100%;padding:14px 15px;border:1px solid var(--line);border-radius:13px;font:inherit;background:#fff;outline:none}input:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,106,0,.1)}
     .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.consent{font-size:11px;color:#777;line-height:1.5;margin:16px 0}.button{width:100%;border:0;border-radius:14px;padding:16px;background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;font-weight:900;font-size:15px;cursor:pointer;box-shadow:0 12px 24px rgba(255,106,0,.22)}
-    .fine{font-size:11px;color:#888;text-align:center;margin:12px 0 0}.footer{max-width:1180px;margin:auto;padding:0 6vw 30px;color:#777;font-size:12px}
+    .button:disabled{opacity:.65;cursor:wait}.fine{font-size:11px;color:#888;text-align:center;margin:12px 0 0}.footer{max-width:1180px;margin:auto;padding:0 6vw 30px;color:#777;font-size:12px}
+    .success{display:none;text-align:center;padding:28px 8px}.success.show{display:block}.success-icon{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:#111;color:#fff;font-size:30px;margin:0 auto 18px}.success h2{font-size:30px;margin:0 0 8px}.success p{color:#666;line-height:1.6;margin:0}.error{display:none;color:#b42318;background:#fff1f0;border:1px solid #ffd2ce;border-radius:12px;padding:12px;margin:14px 0;font-size:13px;font-weight:700}.error.show{display:block}
     @media(max-width:820px){.wrap{grid-template-columns:1fr;gap:34px;padding-top:35px}.top{padding-top:18px}.card{padding:22px;border-radius:22px}.two{grid-template-columns:1fr}h1{font-size:48px}}
   </style>
 </head>
@@ -41,48 +41,57 @@
     </section>
 
     <section class="card">
-      <h2>Blaze Digital Asset Check</h2>
-      <p class="sub">Complete the short check below. This is an enquiry form, not a transaction or guaranteed quote.</p>
-      <form name="blaze-digital-asset-check" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="success.html">
-        <input type="hidden" name="form-name" value="blaze-digital-asset-check">
-        <input type="hidden" name="source" id="source" value="direct">
-        <p style="display:none"><label>Don't fill this out if you're human: <input name="bot-field"></label></p>
+      <div id="formView">
+        <h2>Blaze Digital Asset Check</h2>
+        <p class="sub">Complete the short check below. This is an enquiry form, not a transaction or guaranteed quote.</p>
+        <form id="assetCheckForm" name="blaze-digital-asset-check" method="POST" data-netlify="true" netlify-honeypot="bot-field">
+          <input type="hidden" name="form-name" value="blaze-digital-asset-check">
+          <input type="hidden" name="source" id="source" value="direct">
+          <p style="display:none"><label>Don't fill this out if you're human: <input name="bot-field"></label></p>
 
-        <label>What do you have? <span class="required">*</span></label>
-        <div class="options">
-          <div class="option"><input id="tiktok" type="radio" name="asset" value="TikTok funds" required><label for="tiktok">TikTok funds</label></div>
-          <div class="option"><input id="youtube" type="radio" name="asset" value="YouTube earnings"><label for="youtube">YouTube earnings</label></div>
-          <div class="option"><input id="facebook" type="radio" name="asset" value="Facebook monetisation"><label for="facebook">Facebook monetisation</label></div>
-          <div class="option"><input id="paypal" type="radio" name="asset" value="PayPal funds"><label for="paypal">PayPal funds</label></div>
-          <div class="option"><input id="giftcard" type="radio" name="asset" value="Gift card"><label for="giftcard">Gift card</label></div>
-          <div class="option"><input id="crypto" type="radio" name="asset" value="USDT / Crypto"><label for="crypto">USDT / Crypto</label></div>
-          <div class="option"><input id="other" type="radio" name="asset" value="Other"><label for="other">Other</label></div>
-        </div>
+          <label>What do you have? <span class="required">*</span></label>
+          <div class="options">
+            <div class="option"><input id="tiktok" type="radio" name="asset" value="TikTok funds" required><label for="tiktok">TikTok funds</label></div>
+            <div class="option"><input id="youtube" type="radio" name="asset" value="YouTube earnings"><label for="youtube">YouTube earnings</label></div>
+            <div class="option"><input id="facebook" type="radio" name="asset" value="Facebook monetisation"><label for="facebook">Facebook monetisation</label></div>
+            <div class="option"><input id="paypal" type="radio" name="asset" value="PayPal funds"><label for="paypal">PayPal funds</label></div>
+            <div class="option"><input id="giftcard" type="radio" name="asset" value="Gift card"><label for="giftcard">Gift card</label></div>
+            <div class="option"><input id="crypto" type="radio" name="asset" value="USDT / Crypto"><label for="crypto">USDT / Crypto</label></div>
+            <div class="option"><input id="other" type="radio" name="asset" value="Other"><label for="other">Other</label></div>
+          </div>
 
-        <label>Approximately how much do you have? <span class="required">*</span></label>
-        <div class="options">
-          <div class="option"><input id="a1" type="radio" name="amount" value="Under $50" required><label for="a1">Under $50</label></div>
-          <div class="option"><input id="a2" type="radio" name="amount" value="$50–$100"><label for="a2">$50–$100</label></div>
-          <div class="option"><input id="a3" type="radio" name="amount" value="$100–$500"><label for="a3">$100–$500</label></div>
-          <div class="option"><input id="a4" type="radio" name="amount" value="$500+"><label for="a4">$500+</label></div>
-        </div>
+          <label>Approximately how much do you have? <span class="required">*</span></label>
+          <div class="options">
+            <div class="option"><input id="a1" type="radio" name="amount" value="Under $50" required><label for="a1">Under $50</label></div>
+            <div class="option"><input id="a2" type="radio" name="amount" value="$50–$100"><label for="a2">$50–$100</label></div>
+            <div class="option"><input id="a3" type="radio" name="amount" value="$100–$500"><label for="a3">$100–$500</label></div>
+            <div class="option"><input id="a4" type="radio" name="amount" value="$500+"><label for="a4">$500+</label></div>
+          </div>
 
-        <label>What do you want to do? <span class="required">*</span></label>
-        <div class="options">
-          <div class="option"><input id="q1" type="radio" name="intent" value="Get a quote" required><label for="q1">Get a quote</label></div>
-          <div class="option"><input id="q2" type="radio" name="intent" value="Exchange my funds"><label for="q2">Exchange my funds</label></div>
-          <div class="option"><input id="q3" type="radio" name="intent" value="Check whether Blaze supports my asset"><label for="q3">Check whether Blaze supports my asset</label></div>
-          <div class="option"><input id="q4" type="radio" name="intent" value="Understand the process"><label for="q4">Understand the process</label></div>
-        </div>
+          <label>What do you want to do? <span class="required">*</span></label>
+          <div class="options">
+            <div class="option"><input id="q1" type="radio" name="intent" value="Get a quote" required><label for="q1">Get a quote</label></div>
+            <div class="option"><input id="q2" type="radio" name="intent" value="Exchange my funds"><label for="q2">Exchange my funds</label></div>
+            <div class="option"><input id="q3" type="radio" name="intent" value="Check whether Blaze supports my asset"><label for="q3">Check whether Blaze supports my asset</label></div>
+            <div class="option"><input id="q4" type="radio" name="intent" value="Understand the process"><label for="q4">Understand the process</label></div>
+          </div>
 
-        <div class="two">
-          <div><label for="name">Name <span class="required">*</span></label><input id="name" name="name" type="text" autocomplete="name" required></div>
-          <div><label for="whatsapp">WhatsApp number <span class="required">*</span></label><input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" placeholder="+234..." required></div>
-        </div>
-        <p class="consent">By submitting, you agree that Blaze Exchange may use the details you provide to respond to your enquiry. Do not submit passwords, wallet seed phrases, PINs or private keys.</p>
-        <button class="button" type="submit">Submit My Digital Asset Check</button>
-        <p class="fine">Your submission will be reviewed by the Blaze team.</p>
-      </form>
+          <div class="two">
+            <div><label for="name">Name <span class="required">*</span></label><input id="name" name="name" type="text" autocomplete="name" required></div>
+            <div><label for="whatsapp">WhatsApp number <span class="required">*</span></label><input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" placeholder="+234..." required></div>
+          </div>
+          <p class="consent">By submitting, you agree that Blaze Exchange may use the details you provide to respond to your enquiry. Do not submit passwords, wallet seed phrases, PINs or private keys.</p>
+          <div id="error" class="error"></div>
+          <button id="submitBtn" class="button" type="submit">Submit My Digital Asset Check</button>
+          <p class="fine">Your submission will be reviewed by the Blaze team.</p>
+        </form>
+      </div>
+
+      <div id="successView" class="success" aria-live="polite">
+        <div class="success-icon">✓</div>
+        <h2>Check submitted.</h2>
+        <p>Thanks. Your details have been received by Blaze Exchange. Our team will review your enquiry and follow up with the next step.</p>
+      </div>
     </section>
   </main>
   <div class="footer">© Blaze Exchange · Digital Asset Check</div>
@@ -90,6 +99,37 @@
 <script>
   const params = new URLSearchParams(window.location.search);
   document.getElementById('source').value = params.get('source') || 'direct';
+
+  const form = document.getElementById('assetCheckForm');
+  const button = document.getElementById('submitBtn');
+  const error = document.getElementById('error');
+  const formView = document.getElementById('formView');
+  const successView = document.getElementById('successView');
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    error.classList.remove('show');
+    button.disabled = true;
+    button.textContent = 'Submitting...';
+
+    try {
+      const body = new URLSearchParams(new FormData(form)).toString();
+      const response = await fetch('/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body
+      });
+
+      if (!response.ok) throw new Error('Submission failed');
+      formView.style.display = 'none';
+      successView.classList.add('show');
+    } catch (err) {
+      error.textContent = 'We could not submit your check right now. Please try again in a moment.';
+      error.classList.add('show');
+      button.disabled = false;
+      button.textContent = 'Submit My Digital Asset Check';
+    }
+  });
 </script>
 </body>
 </html>
