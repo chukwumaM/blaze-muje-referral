@@ -1,6 +1,9 @@
 const json = (statusCode, body) => ({
   statusCode,
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+  },
   body: JSON.stringify(body),
 });
 
@@ -8,88 +11,53 @@ function clean(value, max = 500) {
   return String(value || "").trim().slice(0, max);
 }
 
-function normaliseWhatsApp(value) {
-  const raw = clean(value, 40).replace(/[^\d+]/g, "");
-  if (raw.startsWith("00")) return raw.slice(2);
-  if (raw.startsWith("+")) return raw.slice(1);
-  if (raw.startsWith("0")) return `234${raw.slice(1)}`;
-  return raw;
-}
-
 async function sendEmail({ to, subject, html }) {
   const key = process.env.RESEND_API_KEY;
-  if (!key || !to) return { ok: false, skipped: true, reason: "email_not_configured" };
+  if (!key || !to) {
+    return { ok: false, skipped: true, reason: "email_not_configured" };
+  }
 
   const from = process.env.RESEND_FROM || "Blaze Exchange <onboarding@resend.dev>";
+
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: [to], subject, html }),
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject,
+      html,
+    }),
   });
 
-  if (!response.ok) throw new Error(`Resend error: ${response.status} ${await response.text()}`);
-  return { ok: true };
-}
-
-async function sendWhatsApp(to, body, variables) {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_WHATSAPP_FROM;
-  if (!sid || !token || !from || !to) return { ok: false, skipped: true, reason: "whatsapp_not_configured" };
-
-  const params = new URLSearchParams({ from, to: `whatsapp:+${to}` });
-  const contentSid = process.env.TWILIO_CONTENT_SID;
-
-  if (contentSid) {
-    params.set("ContentSid", contentSid);
-    params.set("ContentVariables", JSON.stringify(variables));
-  } else {
-    // Useful for testing in a WhatsApp sandbox or when the customer is already
-    // inside an allowed WhatsApp conversation window. For new outbound chats,
-    // configure TWILIO_CONTENT_SID with an approved template.
-    params.set("Body", body);
+  if (!response.ok) {
+    throw new Error(`Resend error: ${response.status} ${await response.text()}`);
   }
 
-  const auth = Buffer.from(`${sid}:${token}`).toString("base64");
-  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
-    method: "POST",
-    headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
-    body: params,
-  });
-
-  if (!response.ok) throw new Error(`Twilio error: ${response.status} ${await response.text()}`);
-  return { ok: true };
-}
-
-async function saveToGoogleSheet(payload) {
-  const url = process.env.GOOGLE_SCRIPT_URL;
-  if (!url) return { ok: false, skipped: true, reason: "google_sheet_not_configured" };
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok && response.status !== 302) {
-    throw new Error(`Google Apps Script error: ${response.status} ${await response.text()}`);
-  }
   return { ok: true };
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod !== "POST") return json(405, { ok: false, message: "Method not allowed" });
+  if (event.httpMethod !== "POST") {
+    return json(405, { ok: false, message: "Method not allowed" });
+  }
 
   try {
     const data = JSON.parse(event.body || "{}");
-    if (clean(data["bot-field"], 50)) return json(200, { ok: true });
+
+    if (clean(data["bot-field"], 50)) {
+      return json(200, { ok: true });
+    }
 
     const lead = {
       asset: clean(data.asset),
       amount: clean(data.amount),
       intent: clean(data.intent),
       name: clean(data.name, 120),
-      whatsapp: normaliseWhatsApp(data.whatsapp),
+      whatsapp: clean(data.whatsapp, 40),
       email: clean(data.email, 160),
       source: clean(data.source || "direct", 120),
       submitted_at: new Date().toISOString(),
@@ -97,29 +65,84 @@ exports.handler = async (event) => {
     };
 
     if (!lead.asset || !lead.amount || !lead.intent || !lead.name || !lead.whatsapp) {
-      return json(400, { ok: false, message: "Please complete all required fields." });
+      return json(400, {
+        ok: false,
+        message: "Please complete all required fields.",
+      });
     }
 
     const teamEmail = process.env.BLAZE_TEAM_EMAIL;
-    const whatsappText = `Hi ${lead.name}, this is Blaze Exchange. We received your Digital Asset Check for ${lead.asset}. Our team will review the details and get back to you shortly. Please do not send passwords, PINs, seed phrases or private keys.`;
-    const templateVariables = { "1": lead.name, "2": lead.asset };
 
-    const emailHtml = `<h2>New Blaze Digital Asset Check</h2><p><strong>Name:</strong> ${lead.name}</p><p><strong>WhatsApp:</strong> ${lead.whatsapp}</p><p><strong>Email:</strong> ${lead.email || "Not provided"}</p><p><strong>Asset:</strong> ${lead.asset}</p><p><strong>Amount:</strong> ${lead.amount}</p><p><strong>Intent:</strong> ${lead.intent}</p><p><strong>Source:</strong> ${lead.source}</p><p><strong>Submitted:</strong> ${lead.submitted_at}</p><hr><p>Do not request or store passwords, PINs, wallet seed phrases or private keys.</p>`;
+    const emailHtml = `
+      <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#171717">
+        <div style="background:#ff6a00;padding:20px;border-radius:12px 12px 0 0;color:white">
+          <h2 style="margin:0">New Blaze Digital Asset Check</h2>
+        </div>
+        <div style="padding:24px;border:1px solid #eee;border-top:0;border-radius:0 0 12px 12px">
+          <p><strong>Name:</strong> ${lead.name}</p>
+          <p><strong>WhatsApp:</strong> ${lead.whatsapp}</p>
+          <p><strong>Email:</strong> ${lead.email || "Not provided"}</p>
+          <p><strong>Asset:</strong> ${lead.asset}</p>
+          <p><strong>Amount:</strong> ${lead.amount}</p>
+          <p><strong>Intent:</strong> ${lead.intent}</p>
+          <p><strong>Source:</strong> ${lead.source}</p>
+          <p><strong>Submitted:</strong> ${lead.submitted_at}</p>
+          <hr>
+          <p style="color:#666;font-size:13px">Do not request or store passwords, PINs, wallet seed phrases or private keys.</p>
+        </div>
+      </div>
+    `;
+
+    const leadEmailHtml = `
+      <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#171717">
+        <h2>We received your Digital Asset Check</h2>
+        <p>Hi ${lead.name},</p>
+        <p>Thanks for submitting your Digital Asset Check to Blaze Exchange.</p>
+        <p>We received your enquiry about <strong>${lead.asset}</strong>. Our team will review the information you provided and follow up with you.</p>
+        <p>If you need to reach us directly, you can reply to this email or contact Blaze Exchange through your usual channel.</p>
+        <p style="color:#666;font-size:13px">Please do not send passwords, PINs, seed phrases or private keys.</p>
+        <p>— Blaze Exchange</p>
+      </div>
+    `;
 
     const results = await Promise.allSettled([
-      saveToGoogleSheet(lead),
-      sendEmail({ to: teamEmail, subject: `New Digital Asset Check — ${lead.name}`, html: emailHtml }),
-      lead.email ? sendEmail({ to: lead.email, subject: "We received your Blaze Digital Asset Check", html: `<p>Hi ${lead.name},</p><p>We received your Digital Asset Check for <strong>${lead.asset}</strong>.</p><p>The Blaze team will review your enquiry and follow up with you.</p><p>Please do not send passwords, PINs, seed phrases or private keys.</p><p>— Blaze Exchange</p>` }) : Promise.resolve({ ok: false, skipped: true }),
-      sendWhatsApp(lead.whatsapp, whatsappText, templateVariables),
+      sendEmail({
+        to: teamEmail,
+        subject: `New Digital Asset Check — ${lead.name}`,
+        html: emailHtml,
+      }),
+      lead.email
+        ? sendEmail({
+            to: lead.email,
+            subject: "We received your Blaze Digital Asset Check",
+            html: leadEmailHtml,
+          })
+        : Promise.resolve({ ok: false, skipped: true, reason: "lead_email_not_provided" }),
     ]);
 
-    const failed = results.filter((r) => r.status === "rejected");
-    if (failed.length === results.length) return json(502, { ok: false, message: "We could not submit your check right now. Please try again in a moment." });
-    failed.forEach((r) => console.error("Lead integration failed", r.reason));
+    const successful = results.filter(
+      (result) => result.status === "fulfilled" && result.value?.ok === true
+    );
 
-    return json(200, { ok: true, message: "Your Digital Asset Check was submitted successfully." });
+    const rejected = results.filter((result) => result.status === "rejected");
+    rejected.forEach((result) => console.error("Lead email failed:", result.reason));
+
+    if (successful.length === 0) {
+      return json(502, {
+        ok: false,
+        message: "Email delivery is not configured yet. Please try again later.",
+      });
+    }
+
+    return json(200, {
+      ok: true,
+      message: "Your Digital Asset Check was submitted successfully.",
+    });
   } catch (error) {
     console.error(error);
-    return json(500, { ok: false, message: "We could not submit your check right now. Please try again in a moment." });
+    return json(500, {
+      ok: false,
+      message: "We could not submit your check right now. Please try again in a moment.",
+    });
   }
 };
