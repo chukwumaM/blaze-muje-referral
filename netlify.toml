@@ -1,0 +1,11 @@
+[build]
+  publish = "digital-asset-check"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/digital-asset-check/success.html"
+  to = "/digital-asset-check/"
+  status = 301
