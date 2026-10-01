@@ -25,7 +25,8 @@
       <h2>Blaze Digital Asset Check</h2>
       <p class="sub">Complete the short check below. This is an enquiry form, not a transaction or guaranteed quote.</p>
       <div id="status" class="status" role="alert" aria-live="polite"></div>
-      <form id="assetCheckForm" novalidate>
+      <form id="assetCheckForm" name="blaze-digital-asset-check" method="POST" data-netlify="true" netlify-honeypot="bot-field" novalidate>
+        <input type="hidden" name="form-name" value="blaze-digital-asset-check">
         <input type="hidden" name="source" id="source" value="direct">
         <input type="hidden" name="page" id="pageUrl" value="">
         <div style="display:none"><label>Don't fill this out if you're human: <input name="bot-field" tabindex="-1" autocomplete="off"></label></div>
@@ -77,7 +78,8 @@
 </div>
 <script>
   const params = new URLSearchParams(window.location.search);
-  document.getElementById('source').value = params.get('source') || 'direct';
+  const sourceValue = params.get('source') || 'direct';
+  document.getElementById('source').value = sourceValue;
   document.getElementById('pageUrl').value = window.location.href;
 
   const form = document.getElementById('assetCheckForm');
@@ -85,33 +87,50 @@
   const status = document.getElementById('status');
   const actions = document.getElementById('successActions');
 
+  async function saveToNetlifyForms(formData) {
+    const response = await fetch('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(formData).toString()
+    });
+    if (!response.ok) throw new Error('Netlify Forms storage failed');
+  }
+
+  async function sendToLeadAutomations(payload) {
+    const response = await fetch('/.netlify/functions/submit-lead', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok) throw new Error(result.message || 'Lead automation failed');
+    return result;
+  }
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     status.className = 'status';
     status.textContent = '';
     actions.classList.remove('show');
-
     if (!form.reportValidity()) return;
 
     button.disabled = true;
     button.textContent = 'Submitting…';
-
-    const payload = Object.fromEntries(new FormData(form).entries());
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
 
     try {
-      const response = await fetch('/.netlify/functions/submit-lead', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.ok) throw new Error(result.message || 'Submission failed');
+      // Netlify Forms is the primary submission database. The serverless function
+      // handles Google Sheets, team/lead email and WhatsApp integrations.
+      await saveToNetlifyForms(formData);
+      try { await sendToLeadAutomations(payload); }
+      catch (automationError) { console.error('Lead automation warning:', automationError); }
 
       status.className = 'status success';
       status.textContent = 'Check submitted successfully. The Blaze team will review your details and contact you shortly.';
       actions.classList.add('show');
       form.reset();
-      document.getElementById('source').value = params.get('source') || 'direct';
+      document.getElementById('source').value = sourceValue;
       document.getElementById('pageUrl').value = window.location.href;
     } catch (error) {
       console.error(error);
