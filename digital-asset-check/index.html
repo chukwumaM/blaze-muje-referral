@@ -88,12 +88,12 @@
   const actions = document.getElementById('successActions');
 
   async function saveToNetlifyForms(formData) {
-    const response = await fetch('/', {
+    const response = await fetch(window.location.pathname || '/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams(formData).toString()
     });
-    if (!response.ok) throw new Error('Netlify Forms storage failed');
+    if (!response.ok) throw new Error(`Netlify Forms storage failed: ${response.status}`);
   }
 
   async function sendToLeadAutomations(payload) {
@@ -103,7 +103,7 @@
       body: JSON.stringify(payload)
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.ok) throw new Error(result.message || 'Lead automation failed');
+    if (!response.ok || !result.ok) throw new Error(result.message || 'Lead email automation failed');
     return result;
   }
 
@@ -120,14 +120,19 @@
     const payload = Object.fromEntries(formData.entries());
 
     try {
-      // Netlify Forms is the primary submission database. The serverless function
-      // handles Google Sheets, team/lead email and WhatsApp integrations.
-      await saveToNetlifyForms(formData);
-      try { await sendToLeadAutomations(payload); }
-      catch (automationError) { console.error('Lead automation warning:', automationError); }
+      // Email automation is the primary delivery path.
+      await sendToLeadAutomations(payload);
+
+      // Netlify Forms is a secondary lead database. If it is temporarily unavailable,
+      // the email workflow above still succeeds and the lead is not lost.
+      try {
+        await saveToNetlifyForms(formData);
+      } catch (storageError) {
+        console.error('Netlify Forms storage warning:', storageError);
+      }
 
       status.className = 'status success';
-      status.textContent = 'Check submitted successfully. The Blaze team will review your details and contact you shortly.';
+      status.textContent = 'Check submitted successfully. A confirmation email has been sent and the Blaze team will review your details.';
       actions.classList.add('show');
       form.reset();
       document.getElementById('source').value = sourceValue;
